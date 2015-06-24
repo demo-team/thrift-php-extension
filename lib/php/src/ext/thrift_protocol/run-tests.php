@@ -24,7 +24,7 @@
    +----------------------------------------------------------------------+
  */
 
-/* $Id: 87a67768cc2c32abc178471c8087a1c750e1648d $ */
+/* $Id: 5563385ddf90fa6edc842c4a6d4582778e683f7e $ */
 
 /* Sanity check to ensure that pcre extension needed by this script is available.
  * In the event it is not, print a nice error message indicating that this script will
@@ -240,7 +240,6 @@ $ini_overwrites = array(
 		'ignore_repeated_errors=0',
 		'precision=14',
 		'memory_limit=128M',
-		'log_errors_max_len=0',
 		'opcache.fast_shutdown=0',
 		'opcache.file_update_protection=0',
 	);
@@ -314,7 +313,7 @@ VALGRIND    : " . ($leak_check ? $valgrind_header : 'Not used') . "
 define('PHP_QA_EMAIL', 'qa-reports@lists.php.net');
 define('QA_SUBMISSION_PAGE', 'http://qa.php.net/buildtest-process.php');
 define('QA_REPORTS_PAGE', 'http://qa.php.net/reports');
-define('TRAVIS_CI' , (bool) getenv('TRAVIS'));
+define('TRAVIS_CI' , (bool) getenv('TRAVIS_PHP_VERSION'));
 
 function save_or_mail_results()
 {
@@ -663,7 +662,7 @@ if (isset($argc) && $argc > 1) {
 					$html_output = is_resource($html_file);
 					break;
 				case '--version':
-					echo '$Id: 87a67768cc2c32abc178471c8087a1c750e1648d $' . "\n";
+					echo '$Id: 5563385ddf90fa6edc842c4a6d4582778e683f7e $' . "\n";
 					exit(1);
 
 				default:
@@ -851,7 +850,7 @@ $exts_skipped = 0;
 $ignored_by_ext = 0;
 sort($exts_to_test);
 $test_dirs = array();
-$optionals = array('tests', 'ext', 'Zend', 'ZendEngine2', 'sapi/cli', 'sapi/cgi', 'sapi/fpm');
+$optionals = array('tests', 'ext', 'Zend', 'ZendEngine2', 'sapi/cli', 'sapi/cgi');
 
 foreach($optionals as $dir) {
 	if (@filetype($dir) == 'dir') {
@@ -1292,20 +1291,16 @@ TEST $file
 				unset($section_text['FILEEOF']);
 			}
 
-			foreach (array( 'FILE', 'EXPECT', 'EXPECTF', 'EXPECTREGEX' ) as $prefix) {            
-				$key = $prefix . '_EXTERNAL';
+			if (@count($section_text['FILE_EXTERNAL']) == 1) {
+				// don't allow tests to retrieve files from anywhere but this subdirectory
+				$section_text['FILE_EXTERNAL'] = dirname($file) . '/' . trim(str_replace('..', '', $section_text['FILE_EXTERNAL']));
 
-				if (@count($section_text[$key]) == 1) {
-					// don't allow tests to retrieve files from anywhere but this subdirectory
-					$section_text[$key] = dirname($file) . '/' . trim(str_replace('..', '', $section_text[$key]));
-
-					if (file_exists($section_text[$key])) {
-						$section_text[$prefix] = file_get_contents($section_text[$key], FILE_BINARY);
-						unset($section_text[$key]);
-					} else {
-						$bork_info = "could not load --" . $key . "-- " . dirname($file) . '/' . trim($section_text[$key]);
-						$borked = true;
-					}
+				if (file_exists($section_text['FILE_EXTERNAL'])) {
+					$section_text['FILE'] = file_get_contents($section_text['FILE_EXTERNAL'], FILE_BINARY);
+					unset($section_text['FILE_EXTERNAL']);
+				} else {
+					$bork_info = "could not load --FILE_EXTERNAL-- " . dirname($file) . '/' . trim($section_text['FILE_EXTERNAL']);
+					$borked = true;
 				}
 			}
 
